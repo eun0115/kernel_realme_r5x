@@ -360,11 +360,9 @@ int bpf_get_file_flag(int flags)
  */
 static int bpf_obj_name_cpy(char *dst, const char *src)
 {
-	const char *end = src + BPF_OBJ_NAME_LEN;
+const char *end = src + BPF_OBJ_NAME_LEN;
 
-	memset(dst, 0, BPF_OBJ_NAME_LEN);
-
-	/* Copy all isalnum() and '_' char */
+/* Copy all isalnum() and '_' char */
 	while (src < end && *src) {
 		if (!isalnum(*src) && *src != '_')
 			return -EINVAL;
@@ -375,10 +373,13 @@ static int bpf_obj_name_cpy(char *dst, const char *src)
 	if (src == end)
 		return -EINVAL;
 
+	/* '\0' terminates dst */
+	*dst = 0;
+
 	return 0;
 }
 
-#define BPF_MAP_CREATE_LAST_FIELD map_name
+#define BPF_MAP_CREATE_LAST_FIELD numa_node
 /* called via syscall */
 static int map_create(union bpf_attr *attr)
 {
@@ -1505,7 +1506,7 @@ static int bpf_prog_get_info_by_fd(struct bpf_prog *prog,
 	info.id = prog->aux->id;
 	info.load_time = prog->aux->load_time;
 	info.created_by_uid = from_kuid_munged(current_user_ns(),
-					       prog->aux->user->uid);
+						prog->aux->user->uid);
 
 	memcpy(info.tag, prog->tag, sizeof(prog->tag));
 	memcpy(info.name, prog->aux->name, sizeof(prog->aux->name));
@@ -1519,7 +1520,7 @@ static int bpf_prog_get_info_by_fd(struct bpf_prog *prog,
 
 		for (i = 0; i < ulen; i++)
 			if (put_user(prog->aux->used_maps[i]->id,
-				     &user_map_ids[i]))
+					&user_map_ids[i]))
 				return -EFAULT;
 	}
 
