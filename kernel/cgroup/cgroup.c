@@ -1897,6 +1897,9 @@ int cgroup_setup_root(struct cgroup_root *root, u16 ss_mask, int ref_flags)
 	if (ret)
 		goto destroy_root;
 
+       ret = cgroup_bpf_inherit(root_cgrp);
+       WARN_ON_ONCE(ret);
+
 	trace_cgroup_setup_root(root);
 
 	/*
@@ -4862,6 +4865,10 @@ static struct cgroup *cgroup_create(struct cgroup *parent)
 	cgrp->root = root;
 	cgrp->level = level;
 
+       ret = cgroup_bpf_inherit(cgrp);
+       if (ret)
+               goto out_idr_free;
+
 	spin_lock_irq(&css_set_lock);
 	for (tcgrp = cgrp; tcgrp; tcgrp = cgroup_parent(tcgrp)) {
 		cgrp->ancestor_ids[tcgrp->level] = tcgrp->id;
@@ -4902,9 +4909,6 @@ static struct cgroup *cgroup_create(struct cgroup *parent)
 		if (ret)
 			goto out_idr_free;
 	}
-
-	if (parent)
-		cgroup_bpf_inherit(cgrp, parent);
 
 	cgroup_propagate_control(cgrp);
 
@@ -5899,14 +5903,23 @@ void cgroup_sk_free(struct sock_cgroup_data *skcd)
 #endif	/* CONFIG_SOCK_CGROUP_DATA */
 
 #ifdef CONFIG_CGROUP_BPF
-int cgroup_bpf_update(struct cgroup *cgrp, struct bpf_prog *prog,
-		      enum bpf_attach_type type, bool overridable)
+int cgroup_bpf_attach(struct cgroup *cgrp, struct bpf_prog *prog,
+                     enum bpf_attach_type type, u32 flags)
 {
-	struct cgroup *parent = cgroup_parent(cgrp);
+       int ret;
+
+       mutex_lock(&cgroup_mutex);
+       ret = __cgroup_bpf_attach(cgrp, prog, type, flags);
+       mutex_unlock(&cgroup_mutex);
+       return ret;
+}
+int cgroup_bpf_detach(struct cgroup *cgrp, struct bpf_prog *prog,
+                     enum bpf_attach_type type, u32 flags)
+{
 	int ret;
 
 	mutex_lock(&cgroup_mutex);
-	ret = __cgroup_bpf_update(cgrp, parent, prog, type, overridable);
+	ret = __cgroup_bpf_detach(cgrp, prog, type, flags);
 	mutex_unlock(&cgroup_mutex);
 	return ret;
 }
