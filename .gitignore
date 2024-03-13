@@ -125,3 +125,9 @@ all.config
 
 # fetched Android config fragments
 kernel/configs/android-*.cfg
+
+out/
+AnyKernel/
+clang/
+log.txt
+r5x.sh
